@@ -1,35 +1,35 @@
 #include "game.h"
-#include <cstdlib>
-#include <ctime>
 #include <algorithm>
-#include <stdexcept>
 #include <random>
+#include <coroutine>
 
-GuessingCoroutine player_a_coroutine(int min_val, int max_val) {
-    for (int guess = min_val; guess <= max_val; ++guess) {
-        co_yield guess;
-    }
-}
-
-GuessingCoroutine player_b_coroutine(int min_val, int max_val) {
+GuessingCoroutine player_coroutine(int min_val, int max_val) {
     int low = min_val;
     int high = max_val;
+    int guess = -1;
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
 
     while (low <= high) {
-        int guess = low + (high - low) / 2;
+        if (low == high) {
+            guess = low;
+        } else {
+            std::uniform_int_distribution<int> distrib(low, high);
+            guess = distrib(gen);
+        }
         co_yield guess;
     }
 }
 
 GuessingGame::GuessingGame(int min, int max) : min_val(min), max_val(max) {
-    std::srand(std::time(nullptr));
-    secret_number = std::rand() % (max_val - min_val + 1) + min_val;
 
-    // std::random_device rd;
-    // std::mt19937 gen(rd());
-    // std::uniform_int_distribution<int> secret_number(min_val, max_val);
-    players.emplace_back(std::make_pair("Player A", player_a_coroutine(min_val, max_val)));
-    players.emplace_back(std::make_pair("Player B", player_b_coroutine(min_val, max_val)));
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<int> dist(min_val, max_val);
+    secret_number = dist(gen);
+    players.emplace_back(std::make_pair("Player A", player_coroutine(min_val, max_val)));
+    players.emplace_back(std::make_pair("Player B", player_coroutine(min_val, max_val)));
 
     std::cout << "Range: [" << min_val << ", " << max_val << "]" << std::endl;
     std::cout << "Secret Number is set." << std::endl;
@@ -60,7 +60,7 @@ void GuessingGame::print_log(const std::string& player_name, int guess, GuessRes
 }
 
 void GuessingGame::run_game() {
-    std::cout << "\nGAME PROTOCOL\n" << std::endl;
+    std::cout << "\nGAME PROTOCOL\n";
 
     size_t current_player_index = 0;
     bool game_over = false;
